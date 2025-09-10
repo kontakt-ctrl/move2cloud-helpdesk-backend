@@ -1,13 +1,10 @@
-from beanie import Document, Indexed
-from pydantic import EmailStr, Field
-from typing import Literal, Optional
+from sqlmodel import SQLModel, Field
+from typing import Optional
 
-class User(Document):
-    email: Indexed(EmailStr, unique=True)
+class User(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    email: str = Field(index=True, unique=True)
     hashed_password: str
     full_name: str = ""
-    role: Literal["client", "helpdesk", "admin"] = "client"
+    role: str = "client"
     is_active: bool = True
-
-    class Settings:
-        name = "users"
