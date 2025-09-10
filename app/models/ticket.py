@@ -13,10 +13,10 @@ class Ticket(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str
     description: str
-    category_id: Optional[int] = Field(foreign_key="category.id")
-    priority_id: Optional[int] = Field(foreign_key="priority.id")
+    category_id: Optional[int] = Field(default=None, foreign_key="category.id")
+    priority_id: Optional[int] = Field(default=None, foreign_key="priority.id")
     created_by: int = Field(foreign_key="user.id")
-    assigned_to: Optional[int] = Field(foreign_key="user.id", default=None)
+    assigned_to: Optional[int] = Field(default=None, foreign_key="user.id")
     status: str = "open"
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
