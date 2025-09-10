@@ -1,24 +1,22 @@
-from beanie import Document, Link
-from pydantic import BaseModel, Field
-from datetime import datetime
+from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, List
+from datetime import datetime
 
-class CommentModel(BaseModel):
-    author_id: str
+class Comment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ticket_id: int = Field(foreign_key="ticket.id")
+    author_id: int = Field(foreign_key="user.id")
     content: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-class Ticket(Document):
+class Ticket(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
     title: str
     description: str
-    status: str = "open"  # open, in_progress, resolved, closed
-    priority_id: Optional[str] = None
-    category_id: Optional[str] = None
-    created_by: str
-    assigned_to: Optional[str] = None
-    comments: List[CommentModel] = Field(default_factory=list)
+    category_id: Optional[int] = Field(foreign_key="category.id")
+    priority_id: Optional[int] = Field(foreign_key="priority.id")
+    created_by: int = Field(foreign_key="user.id")
+    assigned_to: Optional[int] = Field(foreign_key="user.id", default=None)
+    status: str = "open"
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-    class Settings:
-        name = "tickets"
