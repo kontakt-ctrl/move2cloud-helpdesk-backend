@@ -1,8 +1,6 @@
-from beanie import Document
-from pydantic import Field
+from sqlmodel import SQLModel, Field
+from typing import Optional
 
-class Category(Document):
-    name: str = Field(..., unique=True)
-
-    class Settings:
-        name = "categories"
+class Category(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
