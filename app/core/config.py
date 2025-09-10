@@ -1,5 +1,5 @@
 import os
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings  # <-- poprawiony import
 
 class Settings(BaseSettings):
     mongodb_url: str = os.environ.get("MONGODB_URL", "")
