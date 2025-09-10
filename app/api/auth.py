@@ -1,24 +1,22 @@
 import logging
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Security
 from pydantic import BaseModel, EmailStr
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.future import select
 from app.models.user import User
 from app.core.db import async_session
 
-# Jeśli masz osobny plik z funkcjami bezpieczeństwa, zaimportuj je:
-# from app.core.security import hash_password, verify_password, create_access_token
-
 from passlib.context import CryptContext
-import jwt
+from jose import jwt, JWTError, ExpiredSignatureError  # <-- POPRAWIONY IMPORT
 from app.core.config import settings
 from datetime import datetime, timedelta
+from fastapi.security import OAuth2PasswordBearer
 
 logger = logging.getLogger("app.error")
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# --- POMOCNICZE: Hashowanie hasła i JWT ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
@@ -35,7 +33,6 @@ def create_access_token(user_id: int, email: str):
     }
     return jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
-# --- Schematy wejściowe i wyjściowe ---
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
@@ -52,12 +49,10 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
-# --- Sesja do bazy ---
 async def get_session() -> AsyncSession:
     async with async_session() as session:
         yield session
 
-# --- Endpoint rejestracji ---
 @router.post("/register", response_model=RegisterResponse)
 async def register(data: RegisterRequest, session: AsyncSession = Depends(get_session)):
     try:
@@ -78,7 +73,6 @@ async def register(data: RegisterRequest, session: AsyncSession = Depends(get_se
         logger.error(f"Błąd rejestracji użytkownika {data.email}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Registration failed")
 
-# --- Endpoint logowania ---
 @router.post("/login", response_model=TokenResponse)
 async def login(data: LoginRequest, session: AsyncSession = Depends(get_session)):
     try:
@@ -92,19 +86,13 @@ async def login(data: LoginRequest, session: AsyncSession = Depends(get_session)
         logger.error(f"Błąd logowania użytkownika {data.email}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Login failed")
 
-# --- Endpoint do pobierania informacji o sobie (opcjonalnie) ---
-from fastapi.security import OAuth2PasswordBearer
-from fastapi import Security
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
-
 def decode_token(token: str):
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
         return payload
-    except jwt.ExpiredSignatureError:
+    except ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.PyJWTError:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 @router.get("/me", response_model=RegisterRequest)
