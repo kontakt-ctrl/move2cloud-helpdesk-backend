@@ -1,9 +1,7 @@
-from beanie import Document
-from pydantic import Field
+from sqlmodel import SQLModel, Field
+from typing import Optional
 
-class Priority(Document):
-    name: str = Field(..., unique=True)
-    level: int = Field(..., ge=1, le=10)  # 1 - najniższy, 10 - najwyższy
-
-    class Settings:
-        name = "priorities"
+class Priority(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    level: int
