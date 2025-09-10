@@ -1,15 +1,12 @@
-from motor.motor_asyncio import AsyncIOMotorClient
-from beanie import init_beanie
-from app.models.ticket import Ticket
-from app.models.user import User
-from app.models.category import Category
-from app.models.priority import Priority
+from sqlmodel import SQLModel, create_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 
+DATABASE_URL = settings.database_url
+engine = create_async_engine(DATABASE_URL, echo=True, future=True)
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
 async def init_db():
-    client = AsyncIOMotorClient(settings.mongodb_url)
-    db = client.get_default_database()
-    await init_beanie(
-        database=db,
-        document_models=[User, Ticket, Category, Priority],
-    )
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
