@@ -15,8 +15,11 @@ class PriorityIn(BaseModel):
     level: int
 
 def get_session():
-    with SessionLocal(bind=None) as session:
+    session = SessionLocal()
+    try:
         yield session
+    finally:
+        session.close()
 
 @router.get("/")
 def list_priorities(session: Session = Depends(get_session)):
