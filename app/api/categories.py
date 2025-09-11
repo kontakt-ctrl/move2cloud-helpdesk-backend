@@ -4,7 +4,7 @@ from app.models.category import Category
 from app.api.users import get_current_user
 from pydantic import BaseModel
 from sqlmodel import Session
-from app.core.db import SessionLocal
+from app.core.db import get_session
 
 logger = logging.getLogger("app.error")
 
@@ -12,13 +12,6 @@ router = APIRouter(prefix="/categories", tags=["categories"])
 
 class CategoryIn(BaseModel):
     name: str
-
-def get_session():
-    session = SessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
 
 @router.get("/")
 def list_categories(session: Session = Depends(get_session)):
