@@ -8,7 +8,7 @@ from datetime import datetime
 
 from app.models.ticket import Ticket, Comment
 from app.api.users import get_current_user
-from app.core.db import SessionLocal
+from app.core.db import get_session
 
 logger = logging.getLogger("app.error")
 router = APIRouter(prefix="/tickets", tags=["tickets"])
@@ -18,13 +18,6 @@ class TicketIn(BaseModel):
     description: str
     category_id: Optional[int] = None
     priority_id: Optional[int] = None
-
-def get_session():
-    session = SessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
 
 @router.post("/", response_model=Ticket)
 def create_ticket(
