@@ -1,8 +1,7 @@
 import logging
 from fastapi import APIRouter, HTTPException, status, Depends, Security
 from pydantic import BaseModel, EmailStr
-from sqlalchemy.future import select
-from sqlmodel import Session
+from sqlmodel import Session, select  # <-- zmiana tutaj!
 from app.models.user import User
 from app.core.db import get_session
 from passlib.context import CryptContext
