@@ -14,8 +14,11 @@ class CategoryIn(BaseModel):
     name: str
 
 def get_session():
-    with SessionLocal(bind=None) as session:
+    session = SessionLocal()
+    try:
         yield session
+    finally:
+        session.close()
 
 @router.get("/")
 def list_categories(session: Session = Depends(get_session)):
