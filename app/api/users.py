@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.models.user import User
 from app.core.security import decode_access_token
 from fastapi.security import OAuth2PasswordBearer
-from sqlmodel import Session
+from sqlmodel import Session, select
 from app.core.db import get_session
 
 logger = logging.getLogger("app.error")
@@ -17,7 +17,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Dep
         if not payload:
             raise HTTPException(status_code=401, detail="Invalid token")
         user = session.exec(
-            User.select().where(User.email == payload["sub"])
+            select(User).where(User.email == payload["sub"])
         ).first()
         if not user or not user.is_active:
             raise HTTPException(status_code=404, detail="User not found or inactive")
@@ -44,7 +44,7 @@ def users_list(current: User = Depends(get_current_user), session: Session = Dep
     try:
         if current.role != "admin":
             raise HTTPException(status_code=403, detail="Forbidden")
-        users = session.exec(User.select()).all()
+        users = session.exec(select(User)).all()
         return users
     except Exception as e:
         logger.error("Błąd pobierania listy użytkowników", exc_info=True)
