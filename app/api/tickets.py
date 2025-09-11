@@ -3,11 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy.future import select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel import Session
+from datetime import datetime
 
 from app.models.ticket import Ticket, Comment
 from app.api.users import get_current_user
-from app.core.db import async_session
+from app.core.db import SessionLocal
 
 logger = logging.getLogger("app.error")
 router = APIRouter(prefix="/tickets", tags=["tickets"])
@@ -18,15 +19,15 @@ class TicketIn(BaseModel):
     category_id: Optional[int] = None
     priority_id: Optional[int] = None
 
-async def get_session() -> AsyncSession:
-    async with async_session() as session:
+def get_session():
+    with SessionLocal(bind=None) as session:
         yield session
 
 @router.post("/", response_model=Ticket)
-async def create_ticket(
+def create_ticket(
     data: TicketIn,
     user=Depends(get_current_user),
-    session: AsyncSession = Depends(get_session)
+    session: Session = Depends(get_session)
 ):
     try:
         ticket = Ticket(
@@ -37,37 +38,37 @@ async def create_ticket(
             created_by=user.id
         )
         session.add(ticket)
-        await session.commit()
-        await session.refresh(ticket)
+        session.commit()
+        session.refresh(ticket)
         return ticket
     except Exception as e:
         logger.error("Błąd tworzenia zgłoszenia", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.get("/", response_model=List[Ticket])
-async def list_tickets(
+def list_tickets(
     user=Depends(get_current_user),
-    session: AsyncSession = Depends(get_session)
+    session: Session = Depends(get_session)
 ):
     try:
         if user.role == "client":
-            result = await session.execute(select(Ticket).where(Ticket.created_by == user.id))
+            result = session.exec(select(Ticket).where(Ticket.created_by == user.id))
         else:
-            result = await session.execute(select(Ticket))
-        tickets = result.scalars().all()
+            result = session.exec(select(Ticket))
+        tickets = result.all()
         return tickets
     except Exception as e:
         logger.error("Błąd pobierania listy zgłoszeń", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.get("/{ticket_id}", response_model=Ticket)
-async def get_ticket(
+def get_ticket(
     ticket_id: int,
     user=Depends(get_current_user),
-    session: AsyncSession = Depends(get_session)
+    session: Session = Depends(get_session)
 ):
     try:
-        ticket = await session.get(Ticket, ticket_id)
+        ticket = session.get(Ticket, ticket_id)
         if not ticket:
             raise HTTPException(status_code=404, detail="Not found")
         if user.role == "client" and ticket.created_by != user.id:
@@ -82,14 +83,14 @@ class TicketUpdate(BaseModel):
     assigned_to: Optional[int]
 
 @router.patch("/{ticket_id}", response_model=Ticket)
-async def update_ticket(
+def update_ticket(
     ticket_id: int,
     data: TicketUpdate,
     user=Depends(get_current_user),
-    session: AsyncSession = Depends(get_session)
+    session: Session = Depends(get_session)
 ):
     try:
-        ticket = await session.get(Ticket, ticket_id)
+        ticket = session.get(Ticket, ticket_id)
         if not ticket:
             raise HTTPException(status_code=404, detail="Not found")
         if user.role not in ["helpdesk", "admin"]:
@@ -99,8 +100,8 @@ async def update_ticket(
         if data.assigned_to:
             ticket.assigned_to = data.assigned_to
         ticket.updated_at = datetime.utcnow()
-        await session.commit()
-        await session.refresh(ticket)
+        session.commit()
+        session.refresh(ticket)
         return ticket
     except Exception as e:
         logger.error(f"Błąd aktualizacji zgłoszenia {ticket_id}", exc_info=True)
@@ -110,22 +111,22 @@ class CommentIn(BaseModel):
     content: str
 
 @router.post("/{ticket_id}/comment", response_model=Comment)
-async def add_comment(
+def add_comment(
     ticket_id: int,
     data: CommentIn,
     user=Depends(get_current_user),
-    session: AsyncSession = Depends(get_session)
+    session: Session = Depends(get_session)
 ):
     try:
-        ticket = await session.get(Ticket, ticket_id)
+        ticket = session.get(Ticket, ticket_id)
         if not ticket:
             raise HTTPException(status_code=404, detail="Not found")
         if user.role == "client" and ticket.created_by != user.id:
             raise HTTPException(status_code=403, detail="Forbidden")
         comment = Comment(ticket_id=ticket_id, author_id=user.id, content=data.content)
         session.add(comment)
-        await session.commit()
-        await session.refresh(comment)
+        session.commit()
+        session.refresh(comment)
         return comment
     except Exception as e:
         logger.error(f"Błąd dodawania komentarza do zgłoszenia {ticket_id}", exc_info=True)
