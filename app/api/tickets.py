@@ -100,11 +100,15 @@ def update_ticket(
         ticket = session.get(Ticket, ticket_id)
         if not ticket:
             raise HTTPException(status_code=404, detail="Not found")
-        if user.role not in ["helpdesk", "admin"]:
+        # Pozwól klientowi zamykać własne zgłoszenia, helpdesk/admin dowolne
+        if user.role == "client":
+            if ticket.created_by != user.id:
+                raise HTTPException(status_code=403, detail="Forbidden")
+        elif user.role not in ["helpdesk", "admin"]:
             raise HTTPException(status_code=403, detail="Forbidden")
         if data.status:
             ticket.status = data.status
-        if data.assigned_to:
+        if data.assigned_to is not None and user.role in ["helpdesk", "admin"]:
             ticket.assigned_to = data.assigned_to
         ticket.updated_at = datetime.utcnow()
         session.commit()
