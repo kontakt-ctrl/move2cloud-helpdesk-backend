@@ -30,7 +30,7 @@ app = FastAPI(
 # DODAJ MIDDLEWARE CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://blue-coast-031d26d03.1.azurestaticapps.net"],  # W razie potrzeby wpisz tu konkretne domeny, np. ["https://twoj-frontend.pl"]
+    allow_origins=["https://blue-coast-031d26d03.1.azurestaticapps.net", "https://support.move2.cloud"],  # W razie potrzeby wpisz tu konkretne domeny, np. ["https://twoj-frontend.pl"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
