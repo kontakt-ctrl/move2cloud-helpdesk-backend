@@ -4,6 +4,7 @@ from app.models.priority import Priority
 from app.api.users import get_current_user
 from pydantic import BaseModel
 from sqlmodel import Session
+from sqlalchemy import select  # DODANE
 from app.core.db import get_session
 
 logger = logging.getLogger("app.error")
@@ -17,7 +18,7 @@ class PriorityIn(BaseModel):
 @router.get("/")
 def list_priorities(session: Session = Depends(get_session)):
     try:
-        return session.exec(Priority.select()).all()
+        return session.exec(select(Priority)).all()  # POPRAWKA
     except Exception as e:
         logger.error("Błąd pobierania priorytetów", exc_info=True)
         raise
@@ -27,7 +28,7 @@ def create_priority(data: PriorityIn, user=Depends(get_current_user), session: S
     try:
         if user.role != "admin":
             raise HTTPException(status_code=403, detail="Forbidden")
-        if session.exec(Priority.select().where(Priority.name == data.name)).first():
+        if session.exec(select(Priority).where(Priority.name == data.name)).first():  # POPRAWKA
             raise HTTPException(status_code=400, detail="Priority exists")
         prio = Priority(name=data.name, level=data.level)
         session.add(prio)
