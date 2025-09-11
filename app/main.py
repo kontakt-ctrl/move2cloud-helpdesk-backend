@@ -2,6 +2,7 @@ import logging
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from app.core.db import init_db
 from app.api import auth, users, tickets, categories, priorities
 
@@ -24,6 +25,15 @@ app = FastAPI(
     title="Helpdesk Backend",
     description="Helpdesk API for Azure Web App (FastAPI, PostgreSQL, JWT)",
     version="1.0.0"
+)
+
+# DODAJ MIDDLEWARE CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://blue-coast-031d26d03.1.azurestaticapps.net"],  # W razie potrzeby wpisz tu konkretne domeny, np. ["https://twoj-frontend.pl"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.on_event("startup")
