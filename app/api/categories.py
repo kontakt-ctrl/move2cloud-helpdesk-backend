@@ -4,6 +4,7 @@ from app.models.category import Category
 from app.api.users import get_current_user
 from pydantic import BaseModel
 from sqlmodel import Session
+from sqlalchemy import select  # DODANE
 from app.core.db import get_session
 
 logger = logging.getLogger("app.error")
@@ -16,7 +17,7 @@ class CategoryIn(BaseModel):
 @router.get("/")
 def list_categories(session: Session = Depends(get_session)):
     try:
-        return session.exec(Category.select()).all()
+        return session.exec(select(Category)).all()  # POPRAWKA
     except Exception as e:
         logger.error("Błąd pobierania kategorii", exc_info=True)
         raise
@@ -26,7 +27,7 @@ def create_category(data: CategoryIn, user=Depends(get_current_user), session: S
     try:
         if user.role != "admin":
             raise HTTPException(status_code=403, detail="Forbidden")
-        if session.exec(Category.select().where(Category.name == data.name)).first():
+        if session.exec(select(Category).where(Category.name == data.name)).first():  # POPRAWKA
             raise HTTPException(status_code=400, detail="Category exists")
         cat = Category(name=data.name)
         session.add(cat)
