@@ -49,8 +49,11 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 def get_session():
-    with SessionLocal(bind=None) as session:
+    session = SessionLocal()
+    try:
         yield session
+    finally:
+        session.close()
 
 @router.post("/register", response_model=RegisterResponse)
 def register(data: RegisterRequest, session: Session = Depends(get_session)):
