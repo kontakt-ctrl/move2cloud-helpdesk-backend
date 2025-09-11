@@ -3,18 +3,26 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.models.user import User
 from app.core.security import decode_access_token
 from fastapi.security import OAuth2PasswordBearer
+from sqlmodel import Session
+from app.core.db import SessionLocal
 
 logger = logging.getLogger("app.error")
 
 router = APIRouter(prefix="/users", tags=["users"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+def get_session():
+    with SessionLocal(bind=None) as session:
+        yield session
+
+def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
     try:
         payload = decode_access_token(token)
         if not payload:
             raise HTTPException(status_code=401, detail="Invalid token")
-        user = await User.get(payload["sub"])
+        user = session.exec(
+            User.select().where(User.email == payload["sub"])
+        ).first()
         if not user or not user.is_active:
             raise HTTPException(status_code=404, detail="User not found or inactive")
         return user
@@ -23,7 +31,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise
 
 @router.get("/me")
-async def me(user: User = Depends(get_current_user)):
+def me(user: User = Depends(get_current_user)):
     try:
         return {
             "email": user.email,
@@ -36,11 +44,12 @@ async def me(user: User = Depends(get_current_user)):
         raise
 
 @router.get("/")
-async def users_list(current: User = Depends(get_current_user)):
+def users_list(current: User = Depends(get_current_user), session: Session = Depends(get_session)):
     try:
         if current.role != "admin":
             raise HTTPException(status_code=403, detail="Forbidden")
-        return await User.find_all().to_list()
+        users = session.exec(User.select()).all()
+        return users
     except Exception as e:
         logger.error("Błąd pobierania listy użytkowników", exc_info=True)
         raise
