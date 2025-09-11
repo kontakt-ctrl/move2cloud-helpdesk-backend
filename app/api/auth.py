@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy.future import select
 from sqlmodel import Session
 from app.models.user import User
-from app.core.db import SessionLocal
+from app.core.db import get_session
 from passlib.context import CryptContext
 from jose import jwt, JWTError, ExpiredSignatureError
 from app.core.config import settings
@@ -47,13 +47,6 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-
-def get_session():
-    session = SessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
 
 @router.post("/register", response_model=RegisterResponse)
 def register(data: RegisterRequest, session: Session = Depends(get_session)):
