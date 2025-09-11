@@ -1,13 +1,12 @@
 import logging
 from fastapi import APIRouter, HTTPException, status, Depends, Security
 from pydantic import BaseModel, EmailStr
-from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.future import select
+from sqlmodel import Session
 from app.models.user import User
-from app.core.db import async_session
-
+from app.core.db import SessionLocal
 from passlib.context import CryptContext
-from jose import jwt, JWTError, ExpiredSignatureError  # <-- POPRAWIONY IMPORT
+from jose import jwt, JWTError, ExpiredSignatureError
 from app.core.config import settings
 from datetime import datetime, timedelta
 from fastapi.security import OAuth2PasswordBearer
@@ -49,15 +48,15 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
-async def get_session() -> AsyncSession:
-    async with async_session() as session:
+def get_session():
+    with SessionLocal(bind=None) as session:
         yield session
 
 @router.post("/register", response_model=RegisterResponse)
-async def register(data: RegisterRequest, session: AsyncSession = Depends(get_session)):
+def register(data: RegisterRequest, session: Session = Depends(get_session)):
     try:
-        result = await session.execute(select(User).where(User.email == data.email))
-        user = result.scalar_one_or_none()
+        result = session.exec(select(User).where(User.email == data.email))
+        user = result.first()
         if user:
             raise HTTPException(status_code=400, detail="Email already registered")
         new_user = User(
@@ -66,18 +65,18 @@ async def register(data: RegisterRequest, session: AsyncSession = Depends(get_se
             full_name=data.full_name,
         )
         session.add(new_user)
-        await session.commit()
-        await session.refresh(new_user)
+        session.commit()
+        session.refresh(new_user)
         return RegisterResponse(msg="Registration successful")
     except Exception as e:
         logger.error(f"Błąd rejestracji użytkownika {data.email}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Registration failed")
 
 @router.post("/login", response_model=TokenResponse)
-async def login(data: LoginRequest, session: AsyncSession = Depends(get_session)):
+def login(data: LoginRequest, session: Session = Depends(get_session)):
     try:
-        result = await session.execute(select(User).where(User.email == data.email))
-        user = result.scalar_one_or_none()
+        result = session.exec(select(User).where(User.email == data.email))
+        user = result.first()
         if not user or not verify_password(data.password, user.hashed_password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
         token = create_access_token(user_id=user.id, email=user.email)
@@ -96,13 +95,12 @@ def decode_token(token: str):
         raise HTTPException(status_code=401, detail="Invalid token")
 
 @router.get("/me", response_model=RegisterRequest)
-async def get_me(token: str = Security(oauth2_scheme), session: AsyncSession = Depends(get_session)):
+def get_me(token: str = Security(oauth2_scheme), session: Session = Depends(get_session)):
     payload = decode_token(token)
     user_id = payload.get("user_id")
     if user_id is None:
         raise HTTPException(status_code=401, detail="Invalid token payload")
-    result = await session.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+    user = session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return RegisterRequest(email=user.email, full_name=user.full_name, password="")
