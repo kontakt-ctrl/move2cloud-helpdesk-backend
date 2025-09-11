@@ -14,9 +14,15 @@ class Ticket(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+    class Config:
+        orm_mode = True
+
 class Comment(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     ticket_id: int = Field(foreign_key="ticket.id")
     author_id: int = Field(foreign_key="user.id")
     content: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        orm_mode = True
