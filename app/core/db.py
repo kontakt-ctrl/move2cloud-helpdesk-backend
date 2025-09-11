@@ -2,6 +2,10 @@ from sqlmodel import SQLModel, create_engine, Session
 from app.core.config import settings
 
 DATABASE_URL = settings.database_url
+print("=== DATABASE_URL ===")
+print(DATABASE_URL)
+print("====================")
+
 engine = create_engine(DATABASE_URL, echo=True, future=True)
 SessionLocal = Session
 
