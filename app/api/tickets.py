@@ -20,8 +20,11 @@ class TicketIn(BaseModel):
     priority_id: Optional[int] = None
 
 def get_session():
-    with SessionLocal(bind=None) as session:
+    session = SessionLocal()
+    try:
         yield session
+    finally:
+        session.close()
 
 @router.post("/", response_model=Ticket)
 def create_ticket(
