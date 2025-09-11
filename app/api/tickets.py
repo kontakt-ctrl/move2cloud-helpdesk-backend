@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from typing import Optional, List
-from sqlalchemy.future import select
+from sqlalchemy import select as sqlalchemy_select
 from sqlmodel import Session
 from datetime import datetime
 
@@ -58,10 +58,11 @@ def list_tickets(
 ):
     try:
         if user.role == "client":
-            result = session.exec(select(Ticket).where(Ticket.created_by == user.id))
+            stmt = sqlalchemy_select(Ticket).where(Ticket.created_by == user.id)
         else:
-            result = session.exec(select(Ticket))
-        tickets = result.all()
+            stmt = sqlalchemy_select(Ticket)
+        result = session.exec(stmt)
+        tickets = result.scalars().all()
         return [TicketRead.model_validate(t, from_attributes=True) for t in tickets]
     except Exception as e:
         logger.error("Błąd pobierania listy zgłoszeń", exc_info=True)
