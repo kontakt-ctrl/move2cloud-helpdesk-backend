@@ -1,10 +1,11 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from app.models.user import User
-from app.core.security import decode_access_token
+from app.core.security import decode_access_token, verify_password, hash_password
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session, select
 from app.core.db import get_session
+from pydantic import BaseModel
 
 logger = logging.getLogger("app.error")
 
@@ -49,3 +50,50 @@ def users_list(current: User = Depends(get_current_user), session: Session = Dep
     except Exception as e:
         logger.error("Błąd pobierania listy użytkowników", exc_info=True)
         raise
+
+# === Profile update ===
+
+class ProfileUpdateRequest(BaseModel):
+    full_name: str
+
+@router.patch("/me", summary="Aktualizuj dane profilu")
+def update_profile(
+    data: ProfileUpdateRequest,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    try:
+        user.full_name = data.full_name
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        return {
+            "msg": "Profil został zaktualizowany",
+            "full_name": user.full_name
+        }
+    except Exception as e:
+        logger.error("Błąd aktualizacji profilu", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+# === Password change ===
+
+class PasswordChangeRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+@router.post("/me/change-password", summary="Zmień hasło użytkownika")
+def change_password(
+    data: PasswordChangeRequest,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    try:
+        if not verify_password(data.old_password, user.hashed_password):
+            raise HTTPException(status_code=400, detail="Stare hasło jest nieprawidłowe")
+        user.hashed_password = hash_password(data.new_password)
+        session.add(user)
+        session.commit()
+        return {"msg": "Hasło zostało zmienione"}
+    except Exception as e:
+        logger.error("Błąd zmiany hasła", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
