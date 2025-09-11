@@ -22,15 +22,15 @@ error_logger.addHandler(error_file_handler)
 
 app = FastAPI(
     title="Helpdesk Backend",
-    description="Helpdesk API for Azure Web App (FastAPI, MongoDB, JWT)",
+    description="Helpdesk API for Azure Web App (FastAPI, PostgreSQL, JWT)",
     version="1.0.0"
 )
 
 @app.on_event("startup")
-async def on_startup():
+def on_startup():
     logging.info("Starting up and initializing the database.")
     try:
-        await init_db()
+        init_db()
     except Exception as e:
         error_logger.error("Błąd podczas inicjalizacji bazy danych", exc_info=True)
         raise
