@@ -4,6 +4,7 @@ from app.models.user import User
 from app.core.security import decode_access_token, verify_password, hash_password
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session, select
+from sqlalchemy import select as sqlalchemy_select
 from app.core.db import get_session
 from pydantic import BaseModel
 
@@ -45,7 +46,8 @@ def users_list(current: User = Depends(get_current_user), session: Session = Dep
     try:
         if current.role != "admin":
             raise HTTPException(status_code=403, detail="Forbidden")
-        users = session.exec(select(User)).all()
+        result = session.exec(sqlalchemy_select(User))
+        users = result.scalars().all()
         return users
     except Exception as e:
         logger.error("Błąd pobierania listy użytkowników", exc_info=True)
