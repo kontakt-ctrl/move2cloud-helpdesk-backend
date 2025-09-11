@@ -28,9 +28,15 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
-      
+
+      - name: Clean pip cache and old packages
+        run: |
+          pip uninstall -y bcrypt passlib || true
+          pip cache purge || true
+          find . -name "bcrypt" -type d -exec rm -rf {} +
+
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install --no-cache-dir --force-reinstall -r requirements.txt
         
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
@@ -68,4 +74,3 @@ jobs:
         with:
           app-name: 'move2cloud-helpdesk-backend1'
           slot-name: 'Production'
-          
