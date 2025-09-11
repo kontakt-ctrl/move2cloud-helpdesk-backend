@@ -4,19 +4,12 @@ from app.models.user import User
 from app.core.security import decode_access_token
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session
-from app.core.db import SessionLocal
+from app.core.db import get_session
 
 logger = logging.getLogger("app.error")
 
 router = APIRouter(prefix="/users", tags=["users"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
-
-def get_session():
-    session = SessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
 
 def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
     try:
