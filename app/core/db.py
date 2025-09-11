@@ -1,5 +1,4 @@
-from sqlmodel import SQLModel, create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlmodel import SQLModel, create_engine, Session
 from app.core.config import settings
 
 DATABASE_URL = settings.database_url
@@ -8,7 +7,10 @@ print(DATABASE_URL)
 print("====================")
 
 engine = create_engine(DATABASE_URL, echo=True, future=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def get_session():
+    with Session(engine) as session:
+        yield session
 
 def init_db():
     with engine.begin() as conn:
