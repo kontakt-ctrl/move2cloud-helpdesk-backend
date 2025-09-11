@@ -6,7 +6,7 @@ from sqlalchemy.future import select
 from sqlmodel import Session
 from datetime import datetime
 
-from app.models.ticket import Ticket, Comment
+from app.models.ticket import Ticket, Comment, TicketRead
 from app.api.users import get_current_user
 from app.core.db import get_session
 
@@ -29,7 +29,7 @@ def new_ticket_form():
         "priority_id": None
     }
 
-@router.post("/", response_model=Ticket)
+@router.post("/", response_model=TicketRead)
 def create_ticket(
     data: TicketIn,
     user=Depends(get_current_user),
@@ -51,7 +51,7 @@ def create_ticket(
         logger.error("Błąd tworzenia zgłoszenia", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-@router.get("/", response_model=List[Ticket])
+@router.get("/", response_model=List[TicketRead])
 def list_tickets(
     user=Depends(get_current_user),
     session: Session = Depends(get_session)
@@ -67,7 +67,7 @@ def list_tickets(
         logger.error("Błąd pobierania listy zgłoszeń", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-@router.get("/{ticket_id}", response_model=Ticket)
+@router.get("/{ticket_id}", response_model=TicketRead)
 def get_ticket(
     ticket_id: int,
     user=Depends(get_current_user),
@@ -88,7 +88,7 @@ class TicketUpdate(BaseModel):
     status: Optional[str]
     assigned_to: Optional[int]
 
-@router.patch("/{ticket_id}", response_model=Ticket)
+@router.patch("/{ticket_id}", response_model=TicketRead)
 def update_ticket(
     ticket_id: int,
     data: TicketUpdate,
