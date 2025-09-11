@@ -1,140 +1,22 @@
-import logging
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
-from typing import Optional, List
-from sqlalchemy.future import select
-from sqlmodel import Session
+from sqlmodel import SQLModel, Field
+from typing import Optional
 from datetime import datetime
 
-from app.models.ticket import Ticket, Comment
-from app.models.ticket_out import TicketOut
-from app.api.users import get_current_user
-from app.core.db import get_session
-
-logger = logging.getLogger("app.error")
-router = APIRouter(prefix="/tickets", tags=["tickets"])
-
-class TicketIn(BaseModel):
+class Ticket(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
     title: str
     description: str
-    category_id: Optional[int] = None
-    priority_id: Optional[int] = None
+    category_id: Optional[int] = Field(default=None, foreign_key="category.id")
+    priority_id: Optional[int] = Field(default=None, foreign_key="priority.id")
+    created_by: int
+    assigned_to: Optional[int] = Field(default=None, foreign_key="user.id")
+    status: str = "open"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-# Dodany endpoint obsługujący /tickets/new
-@router.get("/new")
-def new_ticket_form():
-    return {
-        "title": "",
-        "description": "",
-        "category_id": None,
-        "priority_id": None
-    }
-
-@router.post("/", response_model=TicketOut)
-def create_ticket(
-    data: TicketIn,
-    user=Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    try:
-        ticket = Ticket(
-            title=data.title,
-            description=data.description,
-            category_id=data.category_id,
-            priority_id=data.priority_id,
-            created_by=user.id
-        )
-        session.add(ticket)
-        session.commit()
-        session.refresh(ticket)
-        return ticket
-    except Exception as e:
-        logger.error("Błąd tworzenia zgłoszenia", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-
-@router.get("/", response_model=List[TicketOut])
-def list_tickets(
-    user=Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    try:
-        if user.role == "client":
-            result = session.exec(select(Ticket).where(Ticket.created_by == user.id))
-        else:
-            result = session.exec(select(Ticket))
-        tickets = result.all()
-        return tickets
-    except Exception as e:
-        logger.error("Błąd pobierania listy zgłoszeń", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-
-@router.get("/{ticket_id}", response_model=TicketOut)
-def get_ticket(
-    ticket_id: int,
-    user=Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    try:
-        ticket = session.get(Ticket, ticket_id)
-        if not ticket:
-            raise HTTPException(status_code=404, detail="Not found")
-        if user.role == "client" and ticket.created_by != user.id:
-            raise HTTPException(status_code=403, detail="Forbidden")
-        return ticket
-    except Exception as e:
-        logger.error(f"Błąd pobierania zgłoszenia {ticket_id}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-
-class TicketUpdate(BaseModel):
-    status: Optional[str]
-    assigned_to: Optional[int]
-
-@router.patch("/{ticket_id}", response_model=TicketOut)
-def update_ticket(
-    ticket_id: int,
-    data: TicketUpdate,
-    user=Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    try:
-        ticket = session.get(Ticket, ticket_id)
-        if not ticket:
-            raise HTTPException(status_code=404, detail="Not found")
-        if user.role not in ["helpdesk", "admin"]:
-            raise HTTPException(status_code=403, detail="Forbidden")
-        if data.status:
-            ticket.status = data.status
-        if data.assigned_to:
-            ticket.assigned_to = data.assigned_to
-        ticket.updated_at = datetime.utcnow()
-        session.commit()
-        session.refresh(ticket)
-        return ticket
-    except Exception as e:
-        logger.error(f"Błąd aktualizacji zgłoszenia {ticket_id}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-
-class CommentIn(BaseModel):
+class Comment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ticket_id: int = Field(foreign_key="ticket.id")
+    author_id: int = Field(foreign_key="user.id")
     content: str
-
-@router.post("/{ticket_id}/comment", response_model=Comment)
-def add_comment(
-    ticket_id: int,
-    data: CommentIn,
-    user=Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    try:
-        ticket = session.get(Ticket, ticket_id)
-        if not ticket:
-            raise HTTPException(status_code=404, detail="Not found")
-        if user.role == "client" and ticket.created_by != user.id:
-            raise HTTPException(status_code=403, detail="Forbidden")
-        comment = Comment(ticket_id=ticket_id, author_id=user.id, content=data.content)
-        session.add(comment)
-        session.commit()
-        session.refresh(comment)
-        return comment
-    except Exception as e:
-        logger.error(f"Błąd dodawania komentarza do zgłoszenia {ticket_id}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
