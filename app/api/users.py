@@ -12,8 +12,11 @@ router = APIRouter(prefix="/users", tags=["users"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 def get_session():
-    with SessionLocal(bind=None) as session:
+    session = SessionLocal()
+    try:
         yield session
+    finally:
+        session.close()
 
 def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
     try:
