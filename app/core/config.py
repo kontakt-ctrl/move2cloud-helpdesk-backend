@@ -1,10 +1,15 @@
 import os
 from pydantic_settings import BaseSettings
+from dotenv import load_dotenv
+
+# Wczytaj zmienne z pliku .env (ładowanie na starcie)
+load_dotenv()
 
 class Settings(BaseSettings):
-    database_url: str = os.environ.get("DATABASE_URL", "postgresql+asyncpg://user:password@localhost:5432/helpdesk")
-    jwt_secret: str = os.environ.get("JWT_SECRET", "supersecretkey")
-    jwt_algorithm: str = "HS256"
-    jwt_exp_minutes: int = 60 * 24
+    # Teraz wartości będą poprawnie pobierane z .env lub systemowych env
+    database_url: str = os.getenv("DATABASE_URL", "postgresql+psycopg2://user:password@localhost:5432/helpdesk")
+    jwt_secret: str = os.getenv("JWT_SECRET", "supersecretkey")
+    jwt_algorithm: str = os.getenv("JWT_ALGORITHM", "HS256")
+    jwt_exp_minutes: int = int(os.getenv("JWT_EXP_MINUTES", 60 * 24))
 
 settings = Settings()
