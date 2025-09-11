@@ -85,9 +85,10 @@ def get_ticket(
         logger.error(f"Błąd pobierania zgłoszenia {ticket_id}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
+# POPRAWKA: domyślne wartości None dla pól opcjonalnych!
 class TicketUpdate(BaseModel):
-    status: Optional[str]
-    assigned_to: Optional[int]
+    status: Optional[str] = None
+    assigned_to: Optional[int] = None
 
 @router.patch("/{ticket_id}", response_model=TicketRead)
 def update_ticket(
@@ -106,7 +107,7 @@ def update_ticket(
                 raise HTTPException(status_code=403, detail="Forbidden")
         elif user.role not in ["helpdesk", "admin"]:
             raise HTTPException(status_code=403, detail="Forbidden")
-        if data.status:
+        if data.status is not None:
             ticket.status = data.status
         if data.assigned_to is not None and user.role in ["helpdesk", "admin"]:
             ticket.assigned_to = data.assigned_to
