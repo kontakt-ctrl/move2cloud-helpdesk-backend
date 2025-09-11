@@ -19,6 +19,16 @@ class TicketIn(BaseModel):
     category_id: Optional[int] = None
     priority_id: Optional[int] = None
 
+# Dodany endpoint obsługujący /tickets/new
+@router.get("/new")
+def new_ticket_form():
+    return {
+        "title": "",
+        "description": "",
+        "category_id": None,
+        "priority_id": None
+    }
+
 @router.post("/", response_model=Ticket)
 def create_ticket(
     data: TicketIn,
