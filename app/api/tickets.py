@@ -46,7 +46,7 @@ def create_ticket(
         session.add(ticket)
         session.commit()
         session.refresh(ticket)
-        return ticket
+        return TicketRead.model_validate(ticket)
     except Exception as e:
         logger.error("Błąd tworzenia zgłoszenia", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
@@ -62,7 +62,7 @@ def list_tickets(
         else:
             result = session.exec(select(Ticket))
         tickets = result.all()
-        return tickets
+        return [TicketRead.model_validate(t) for t in tickets]
     except Exception as e:
         logger.error("Błąd pobierania listy zgłoszeń", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
@@ -79,7 +79,7 @@ def get_ticket(
             raise HTTPException(status_code=404, detail="Not found")
         if user.role == "client" and ticket.created_by != user.id:
             raise HTTPException(status_code=403, detail="Forbidden")
-        return ticket
+        return TicketRead.model_validate(ticket)
     except Exception as e:
         logger.error(f"Błąd pobierania zgłoszenia {ticket_id}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
@@ -108,7 +108,7 @@ def update_ticket(
         ticket.updated_at = datetime.utcnow()
         session.commit()
         session.refresh(ticket)
-        return ticket
+        return TicketRead.model_validate(ticket)
     except Exception as e:
         logger.error(f"Błąd aktualizacji zgłoszenia {ticket_id}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
