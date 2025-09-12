@@ -47,6 +47,12 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
+# Nowy model odpowiedzi dla /auth/me
+class MeResponse(BaseModel):
+    email: EmailStr
+    full_name: str = ""
+    role: str
+
 @router.post("/register", response_model=RegisterResponse)
 def register(data: RegisterRequest, session: Session = Depends(get_session)):
     try:
@@ -89,7 +95,7 @@ def decode_token(token: str):
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-@router.get("/me", response_model=RegisterRequest)
+@router.get("/me", response_model=MeResponse)
 def get_me(token: str = Security(oauth2_scheme), session: Session = Depends(get_session)):
     payload = decode_token(token)
     user_id = payload.get("user_id")
@@ -98,4 +104,4 @@ def get_me(token: str = Security(oauth2_scheme), session: Session = Depends(get_
     user = session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return RegisterRequest(email=user.email, full_name=user.full_name, password="")
+    return MeResponse(email=user.email, full_name=user.full_name, role=user.role)
