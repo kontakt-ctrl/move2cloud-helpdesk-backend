@@ -18,6 +18,7 @@ class MailRequest(BaseModel):
     to: EmailStr
     subject: str
     body: str
+    html: bool = False  # NOWE pole
 
 @router.post("/send")
 def send_mail(data: MailRequest):
@@ -25,7 +26,9 @@ def send_mail(data: MailRequest):
         logger.error("Brak konfiguracji SMTP (SMTP_USER/SMTP_PASS)")
         raise HTTPException(status_code=500, detail="SMTP not configured")
     try:
-        msg = MIMEText(data.body, "plain", "utf-8")
+        # Ustal MIME typu maila na html jeśli html=True, w przeciwnym razie text/plain
+        mime_type = "html" if data.html else "plain"
+        msg = MIMEText(data.body, mime_type, "utf-8")
         msg["Subject"] = data.subject
         msg["From"] = FROM_ADDR
         msg["To"] = data.to
