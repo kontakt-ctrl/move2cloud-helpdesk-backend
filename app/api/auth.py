@@ -12,7 +12,7 @@ from jose import jwt, JWTError, ExpiredSignatureError
 from app.core.config import settings
 from datetime import datetime, timedelta
 from fastapi.security import OAuth2PasswordBearer
-from app.api.mail import send_mail
+from app.api.mail import send_mail, MailRequest
 
 logger = logging.getLogger("app.error")
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -141,12 +141,12 @@ def request_password_reset(
     session.commit()
     # Send email
     try:
-        send_mail({
-            "to": data.email,
-            "subject": "Kod resetu hasła",
-            "body": f"Twój kod resetu hasła to: {code}\nKod jest ważny przez 15 minut.",
-            "html": False
-        })
+        send_mail(MailRequest(
+            to=data.email,
+            subject="Kod resetu hasła",
+            body=f"Twój kod resetu hasła to: {code}\nKod jest ważny przez 15 minut.",
+            html=False
+        ))
     except Exception as e:
         logger.error(f"Błąd wysyłki kodu resetu hasła: {e}", exc_info=True)
         # Don't leak error to malicious user
