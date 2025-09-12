@@ -1,7 +1,7 @@
 import logging
 from fastapi import APIRouter, HTTPException, status, Depends, Security
 from pydantic import BaseModel, EmailStr
-from sqlmodel import Session, select  # <-- zmiana tutaj!
+from sqlmodel import Session, select
 from app.models.user import User
 from app.core.db import get_session
 from passlib.context import CryptContext
@@ -31,10 +31,12 @@ def create_access_token(user_id: int, email: str):
     }
     return jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
+# Dodano pole role
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     full_name: str = ""
+    role: str = "client"  # domyślnie client
 
 class RegisterResponse(BaseModel):
     msg: str
@@ -47,7 +49,6 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
-# Nowy model odpowiedzi dla /auth/me
 class MeResponse(BaseModel):
     email: EmailStr
     full_name: str = ""
@@ -60,10 +61,12 @@ def register(data: RegisterRequest, session: Session = Depends(get_session)):
         user = result.first()
         if user:
             raise HTTPException(status_code=400, detail="Email already registered")
+        # Przekazujemy role do User, domyślnie "client"
         new_user = User(
             email=data.email,
             hashed_password=hash_password(data.password),
             full_name=data.full_name,
+            role=data.role
         )
         session.add(new_user)
         session.commit()
