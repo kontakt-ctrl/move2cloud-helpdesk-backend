@@ -78,7 +78,7 @@ def update_profile(
         logger.error("Błąd aktualizacji profilu", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-# === Password change ===
+# === Password change (self) ===
 
 class PasswordChangeRequest(BaseModel):
     old_password: str
@@ -150,4 +150,30 @@ def admin_update_user(
         }
     except Exception as e:
         logger.error(f"Błąd aktualizacji użytkownika {user_id}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+# === Admin POST /users/{id}/reset-password ===
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str
+
+@router.post("/{user_id}/reset-password", summary="Resetuj hasło użytkownika (admin)")
+def reset_password(
+    user_id: int = Path(..., description="ID użytkownika"),
+    data: ResetPasswordRequest = Body(...),
+    current: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    try:
+        if current.role != "admin":
+            raise HTTPException(status_code=403, detail="Forbidden")
+        user = session.get(User, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        user.hashed_password = hash_password(data.new_password)
+        session.add(user)
+        session.commit()
+        return {"msg": "Hasło zostało zresetowane"}
+    except Exception as e:
+        logger.error(f"Błąd resetowania hasła użytkownika {user_id}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
