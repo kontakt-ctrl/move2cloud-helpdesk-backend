@@ -6,6 +6,10 @@ from email.mime.text import MIMEText
 import os
 from app.api.users import get_current_user  # DODANE
 
+
+print("SMTP_USER:", os.getenv("SMTP_USER"))
+print("SMTP_PASS:", os.getenv("SMTP_PASS"))
+
 logger = logging.getLogger("app.error")
 router = APIRouter(prefix="/mail", tags=["mail"])
 
