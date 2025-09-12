@@ -20,7 +20,6 @@ class TicketIn(BaseModel):
     category_id: Optional[int] = None
     priority_id: Optional[int] = None
 
-# Dodany endpoint obsługujący /tickets/new
 @router.get("/new")
 def new_ticket_form():
     return {
@@ -47,7 +46,19 @@ def create_ticket(
         session.add(ticket)
         session.commit()
         session.refresh(ticket)
-        return TicketRead.model_validate(ticket, from_attributes=True, comments=[])
+        return TicketRead(
+            id=ticket.id,
+            title=ticket.title,
+            description=ticket.description,
+            category_id=ticket.category_id,
+            priority_id=ticket.priority_id,
+            created_by=ticket.created_by,
+            assigned_to=ticket.assigned_to,
+            status=ticket.status,
+            created_at=ticket.created_at,
+            updated_at=ticket.updated_at,
+            comments=[]
+        )
     except Exception as e:
         logger.error("Błąd tworzenia zgłoszenia", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
@@ -66,7 +77,6 @@ def list_tickets(
         tickets = result.scalars().all()
         tickets_out = []
         for t in tickets:
-            # Pobierz komentarze dla każdego tiketu
             comments_query = session.exec(sqlalchemy_select(Comment).where(Comment.ticket_id == t.id))
             comments = []
             for c in comments_query.scalars().all():
@@ -85,7 +95,21 @@ def list_tickets(
                         author=author
                     )
                 )
-            tickets_out.append(TicketRead.model_validate(t, from_attributes=True, comments=comments))
+            tickets_out.append(
+                TicketRead(
+                    id=t.id,
+                    title=t.title,
+                    description=t.description,
+                    category_id=t.category_id,
+                    priority_id=t.priority_id,
+                    created_by=t.created_by,
+                    assigned_to=t.assigned_to,
+                    status=t.status,
+                    created_at=t.created_at,
+                    updated_at=t.updated_at,
+                    comments=comments
+                )
+            )
         return tickets_out
     except Exception as e:
         logger.error("Błąd pobierania listy zgłoszeń", exc_info=True)
@@ -103,7 +127,6 @@ def get_ticket(
             raise HTTPException(status_code=404, detail="Not found")
         if user.role == "client" and ticket.created_by != user.id:
             raise HTTPException(status_code=403, detail="Forbidden")
-        # Pobierz komentarze do zgłoszenia
         comments_query = session.exec(sqlalchemy_select(Comment).where(Comment.ticket_id == ticket_id))
         comments = []
         for c in comments_query.scalars().all():
@@ -122,12 +145,23 @@ def get_ticket(
                     author=author
                 )
             )
-        return TicketRead.model_validate(ticket, from_attributes=True, comments=comments)
+        return TicketRead(
+            id=ticket.id,
+            title=ticket.title,
+            description=ticket.description,
+            category_id=ticket.category_id,
+            priority_id=ticket.priority_id,
+            created_by=ticket.created_by,
+            assigned_to=ticket.assigned_to,
+            status=ticket.status,
+            created_at=ticket.created_at,
+            updated_at=ticket.updated_at,
+            comments=comments
+        )
     except Exception as e:
         logger.error(f"Błąd pobierania zgłoszenia {ticket_id}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-# POPRAWKA: domyślne wartości None dla pól opcjonalnych!
 class TicketUpdate(BaseModel):
     status: Optional[str] = None
     assigned_to: Optional[int] = None
@@ -143,7 +177,6 @@ def update_ticket(
         ticket = session.get(Ticket, ticket_id)
         if not ticket:
             raise HTTPException(status_code=404, detail="Not found")
-        # Pozwól klientowi zamykać własne zgłoszenia, helpdesk/admin dowolne
         if user.role == "client":
             if ticket.created_by != user.id:
                 raise HTTPException(status_code=403, detail="Forbidden")
@@ -156,7 +189,6 @@ def update_ticket(
         ticket.updated_at = datetime.utcnow()
         session.commit()
         session.refresh(ticket)
-        # Ponownie pobierz komentarze
         comments_query = session.exec(sqlalchemy_select(Comment).where(Comment.ticket_id == ticket_id))
         comments = []
         for c in comments_query.scalars().all():
@@ -175,7 +207,19 @@ def update_ticket(
                     author=author
                 )
             )
-        return TicketRead.model_validate(ticket, from_attributes=True, comments=comments)
+        return TicketRead(
+            id=ticket.id,
+            title=ticket.title,
+            description=ticket.description,
+            category_id=ticket.category_id,
+            priority_id=ticket.priority_id,
+            created_by=ticket.created_by,
+            assigned_to=ticket.assigned_to,
+            status=ticket.status,
+            created_at=ticket.created_at,
+            updated_at=ticket.updated_at,
+            comments=comments
+        )
     except Exception as e:
         logger.error(f"Błąd aktualizacji zgłoszenia {ticket_id}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
