@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.db import init_db
 from app.api import auth, users, tickets, categories, priorities
 from app.api import mail  # DODAJ TEN IMPORT
+from app.api import attachments  # DODAJ TEN IMPORT (nowy router załączników)
 
 # KONFIGURACJA LOGOWANIA
 logging.basicConfig(
@@ -62,6 +63,7 @@ app.include_router(tickets.router)
 app.include_router(categories.router)
 app.include_router(priorities.router)
 app.include_router(mail.router)  # DODAJ TĘ LINIĘ
+app.include_router(attachments.router)  # DODAJ TĘ LINIĘ (nowy router załączników)
 
 if __name__ == "__main__":
     logging.info("Running in __main__ mode, starting Uvicorn server.")
