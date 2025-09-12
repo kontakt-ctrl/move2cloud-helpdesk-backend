@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel
 
@@ -28,7 +28,24 @@ class Comment(SQLModel, table=True):
     class Config:
         orm_mode = True
 
-# Dodajemy model Pydantic do odpowiedzi API
+# Nowy model autora komentarza do zwracania w API
+class AuthorOut(BaseModel):
+    id: int
+    email: str
+    full_name: str
+
+# Komentarz z polem author
+class CommentOut(BaseModel):
+    id: int
+    ticket_id: int
+    content: str
+    created_at: datetime
+    author: AuthorOut
+
+    class Config:
+        orm_mode = True
+
+# TicketRead z listą komentarzy z autorami
 class TicketRead(BaseModel):
     id: int
     title: str
@@ -40,6 +57,7 @@ class TicketRead(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
+    comments: List[CommentOut] = []
 
     class Config:
         orm_mode = True
