@@ -1,9 +1,10 @@
 import logging
 import smtplib
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, EmailStr
 from email.mime.text import MIMEText
 import os
+from app.api.users import get_current_user  # DODANE
 
 logger = logging.getLogger("app.error")
 router = APIRouter(prefix="/mail", tags=["mail"])
@@ -14,7 +15,10 @@ class SendMailRequest(BaseModel):
     body: str
 
 @router.post("/send")
-def send_mail(data: SendMailRequest):
+def send_mail(
+    data: SendMailRequest,
+    user=Depends(get_current_user)  # DODANE
+):
     try:
         smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
         smtp_port = int(os.getenv("SMTP_PORT", 587))
@@ -31,10 +35,17 @@ def send_mail(data: SendMailRequest):
         msg["From"] = from_addr
         msg["To"] = data.to
 
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
-            server.starttls()
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(from_addr, [data.to], msg.as_string())
+        # Obsługa SSL/STARTTLS zależnie od portu
+        if smtp_port == 465:
+            import smtplib
+            with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(from_addr, [data.to], msg.as_string())
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(from_addr, [data.to], msg.as_string())
 
         return {"msg": "E-mail wysłany"}
     except Exception as e:
