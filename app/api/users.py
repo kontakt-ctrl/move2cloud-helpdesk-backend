@@ -127,7 +127,6 @@ def admin_update_user(
         if data.full_name is not None:
             user.full_name = data.full_name
         if data.email is not None:
-            # Sprawdź, czy inny użytkownik nie ma już takiego e-maila
             existing = session.exec(select(User).where(User.email == data.email, User.id != user_id)).first()
             if existing:
                 raise HTTPException(status_code=400, detail="Email already in use")
@@ -176,4 +175,25 @@ def reset_password(
         return {"msg": "Hasło zostało zresetowane"}
     except Exception as e:
         logger.error(f"Błąd resetowania hasła użytkownika {user_id}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+# === Admin DELETE /users/{id} ===
+
+@router.delete("/{user_id}", summary="Usuń użytkownika (admin)")
+def delete_user(
+    user_id: int = Path(..., description="ID użytkownika"),
+    current: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    try:
+        if current.role != "admin":
+            raise HTTPException(status_code=403, detail="Forbidden")
+        user = session.get(User, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        session.delete(user)
+        session.commit()
+        return {"msg": "Użytkownik został usunięty"}
+    except Exception as e:
+        logger.error(f"Błąd usuwania użytkownika {user_id}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal Server Error")
