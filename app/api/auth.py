@@ -1,14 +1,18 @@
 import logging
-from fastapi import APIRouter, HTTPException, status, Depends, Security
+import random
+import string
+from fastapi import APIRouter, HTTPException, status, Depends, Security, Body
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, select
 from app.models.user import User
+from app.models.password_reset import PasswordResetToken
 from app.core.db import get_session
 from passlib.context import CryptContext
 from jose import jwt, JWTError, ExpiredSignatureError
 from app.core.config import settings
 from datetime import datetime, timedelta
 from fastapi.security import OAuth2PasswordBearer
+from app.api.mail import send_mail
 
 logger = logging.getLogger("app.error")
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -108,3 +112,76 @@ def get_me(token: str = Security(oauth2_scheme), session: Session = Depends(get_
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return MeResponse(email=user.email, full_name=user.full_name, role=user.role)
+
+# ----- RESET PASSWORD BY EMAIL: REQUEST -----
+
+class RequestPasswordReset(BaseModel):
+    email: EmailStr
+
+@router.post("/request-password-reset")
+def request_password_reset(
+    data: RequestPasswordReset,
+    session: Session = Depends(get_session)
+):
+    # Don't leak info if email exists or not
+    user = session.exec(select(User).where(User.email == data.email)).first()
+    if not user:
+        # Always return the same for non-existing users
+        return {"msg": "Jeśli podany adres istnieje, kod resetu został wysłany na e-mail."}
+    # Generate code (6 digits)
+    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    expires_at = datetime.utcnow() + timedelta(minutes=15)
+    token = PasswordResetToken(
+        email=data.email,
+        code=code,
+        expires_at=expires_at,
+        used=False
+    )
+    session.add(token)
+    session.commit()
+    # Send email
+    try:
+        send_mail({
+            "to": data.email,
+            "subject": "Kod resetu hasła",
+            "body": f"Twój kod resetu hasła to: {code}\nKod jest ważny przez 15 minut.",
+            "html": False
+        })
+    except Exception as e:
+        logger.error(f"Błąd wysyłki kodu resetu hasła: {e}", exc_info=True)
+        # Don't leak error to malicious user
+    return {"msg": "Jeśli podany adres istnieje, kod resetu został wysłany na e-mail."}
+
+# ----- RESET PASSWORD BY EMAIL: CONFIRM -----
+
+class ConfirmPasswordReset(BaseModel):
+    email: EmailStr
+    code: str
+    new_password: str
+
+@router.post("/reset-password")
+def reset_password(
+    data: ConfirmPasswordReset,
+    session: Session = Depends(get_session)
+):
+    # Find token
+    token = session.exec(
+        select(PasswordResetToken)
+        .where(
+            PasswordResetToken.email == data.email,
+            PasswordResetToken.code == data.code,
+            PasswordResetToken.used == False,
+            PasswordResetToken.expires_at > datetime.utcnow()
+        )
+    ).first()
+    if not token:
+        raise HTTPException(status_code=400, detail="Nieprawidłowy kod lub kod wygasł")
+    user = session.exec(select(User).where(User.email == data.email)).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Nie znaleziono użytkownika")
+    user.hashed_password = hash_password(data.new_password)
+    token.used = True
+    session.add(user)
+    session.add(token)
+    session.commit()
+    return {"msg": "Hasło zostało zresetowane"}
