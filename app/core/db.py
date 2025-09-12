@@ -1,5 +1,6 @@
 from sqlmodel import SQLModel, create_engine, Session
 from app.core.config import settings
+from app.models.password_reset import PasswordResetToken  # <-- DODANE
 
 DATABASE_URL = settings.database_url
 print("=== DATABASE_URL ===")
